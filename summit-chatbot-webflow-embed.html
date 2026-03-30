@@ -1,0 +1,388 @@
+<!-- ============================================================
+     SUMMIT FOOT + ANKLE — Chat Widget
+     Paste this entire block into:
+     Webflow → Project Settings → Custom Code → Footer Code
+     (or into a page-level Embed element for specific pages)
+
+     BEFORE YOU PUBLISH: replace YOUR_N8N_WEBHOOK_URL_HERE below
+     ============================================================ -->
+
+<style>
+  :root {
+    --sf-teal-dark:   #1a3d3a;
+    --sf-teal-mid:    #2a5550;
+    --sf-teal-accent: #4db8b0;
+    --sf-teal-light:  #d4f0ed;
+    --sf-teal-pale:   #eef8f7;
+    --sf-white:       #ffffff;
+    --sf-text-dark:   #1a2e2d;
+    --sf-text-light:  #8aa8a5;
+    --sf-shadow-sm:   0 2px 8px rgba(26,61,58,.10);
+    --sf-shadow-lg:   0 12px 48px rgba(26,61,58,.22);
+  }
+
+  /* Launcher */
+  #sf-launcher {
+    position: fixed;
+    bottom: 28px; right: 28px;
+    width: 60px; height: 60px;
+    background: var(--sf-teal-dark);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--sf-shadow-lg);
+    transition: transform .22s cubic-bezier(.34,1.56,.64,1), box-shadow .2s;
+    z-index: 99999;
+    border: none; outline: none;
+  }
+  #sf-launcher:hover { transform: scale(1.1); box-shadow: 0 16px 56px rgba(26,61,58,.32); }
+  #sf-launcher .sf-icon-chat { transition: opacity .18s, transform .18s; }
+  #sf-launcher.open .sf-icon-chat  { opacity: 0; transform: scale(0.6) rotate(20deg); }
+  #sf-launcher.open .sf-icon-close { opacity: 1; transform: scale(1) rotate(0deg); }
+  #sf-launcher .sf-icon-close { position: absolute; opacity: 0; transform: scale(0.6) rotate(-20deg); transition: opacity .18s, transform .18s; }
+  #sf-launcher::after {
+    content: '';
+    position: absolute; top: 3px; right: 3px;
+    width: 14px; height: 14px;
+    background: var(--sf-teal-accent);
+    border-radius: 50%;
+    border: 2px solid white;
+    animation: sf-pulse 2s ease infinite;
+  }
+  #sf-launcher.open::after { display: none; }
+
+  /* Window */
+  #sf-window {
+    position: fixed;
+    bottom: 104px; right: 28px;
+    width: 380px; max-height: 620px;
+    background: var(--sf-white);
+    border-radius: 16px;
+    box-shadow: var(--sf-shadow-lg);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+    z-index: 99998;
+    transform-origin: bottom right;
+    transform: scale(0.85) translateY(20px);
+    opacity: 0; pointer-events: none;
+    transition: transform .28s cubic-bezier(.34,1.56,.64,1), opacity .22s ease;
+    font-family: 'DM Sans', sans-serif;
+  }
+  #sf-window.open { transform: scale(1) translateY(0); opacity: 1; pointer-events: all; }
+
+  /* Header */
+  .sf-header {
+    background: linear-gradient(135deg, var(--sf-teal-dark) 0%, var(--sf-teal-mid) 100%);
+    padding: 20px 20px 16px;
+    position: relative; overflow: hidden; flex-shrink: 0;
+  }
+  .sf-header::before {
+    content: '';
+    position: absolute; inset: 0;
+    background: url("data:image/svg+xml,%3Csvg width='400' height='120' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M0 80 Q100 40 200 60 Q300 80 400 30 L400 120 L0 120Z' fill='rgba(77,184,176,0.08)'/%3E%3Cpath d='M0 100 Q120 60 260 80 Q340 90 400 55 L400 120 L0 120Z' fill='rgba(77,184,176,0.06)'/%3E%3C/svg%3E") bottom/cover no-repeat;
+    pointer-events: none;
+  }
+  .sf-header-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .sf-brand-row  { display: flex; align-items: center; gap: 10px; }
+  .sf-avatar {
+    width: 40px; height: 40px; border-radius: 50%;
+    background: var(--sf-teal-accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px; flex-shrink: 0;
+    border: 2px solid rgba(255,255,255,0.25);
+  }
+  .sf-brand-name {
+    font-family: 'DM Serif Display', serif;
+    color: white; font-size: 15px; line-height: 1.2;
+  }
+  .sf-brand-sub {
+    color: var(--sf-teal-accent); font-size: 11px;
+    font-weight: 500; letter-spacing: .06em; text-transform: uppercase;
+  }
+  .sf-status {
+    display: flex; align-items: center; gap: 5px;
+    background: rgba(255,255,255,0.12);
+    border-radius: 20px; padding: 4px 10px;
+    font-size: 11px; color: rgba(255,255,255,0.85); font-weight: 500;
+  }
+  .sf-status-dot { width: 6px; height: 6px; border-radius: 50%; background: #6ee7b7; animation: sf-pulse 2s infinite; }
+  .sf-tagline { color: rgba(255,255,255,.7); font-size: 12.5px; font-weight: 300; }
+
+  /* Messages */
+  .sf-messages {
+    flex: 1; overflow-y: auto;
+    padding: 20px 16px;
+    display: flex; flex-direction: column; gap: 12px;
+    background: var(--sf-teal-pale);
+    scroll-behavior: smooth;
+    scrollbar-width: thin; scrollbar-color: var(--sf-teal-light) transparent;
+  }
+  .sf-messages::-webkit-scrollbar { width: 4px; }
+  .sf-messages::-webkit-scrollbar-thumb { background: var(--sf-teal-light); border-radius: 4px; }
+
+  /* Bubbles */
+  .sf-msg { display: flex; gap: 8px; align-items: flex-end; animation: sf-msg-in .22s ease; }
+  .sf-msg.sf-user { flex-direction: row-reverse; }
+  .sf-msg-avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    background: var(--sf-teal-accent);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; flex-shrink: 0;
+  }
+  .sf-msg.sf-user .sf-msg-avatar { background: var(--sf-teal-dark); font-size: 11px; color: white; font-weight: 600; }
+  .sf-bubble {
+    max-width: 78%; padding: 10px 14px; border-radius: 16px;
+    font-size: 13.5px; line-height: 1.5; color: var(--sf-text-dark);
+    font-family: 'DM Sans', sans-serif;
+  }
+  .sf-msg.sf-bot  .sf-bubble { background: white; border-bottom-left-radius: 4px; box-shadow: var(--sf-shadow-sm); }
+  .sf-msg.sf-user .sf-bubble { background: var(--sf-teal-dark); color: white; border-bottom-right-radius: 4px; }
+
+  /* Typing */
+  .sf-typing {
+    display: flex; gap: 4px; align-items: center;
+    padding: 10px 14px; background: white;
+    border-radius: 16px; border-bottom-left-radius: 4px;
+    box-shadow: var(--sf-shadow-sm); width: fit-content;
+  }
+  .sf-typing span {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--sf-teal-accent); animation: sf-bounce 1.2s infinite;
+  }
+  .sf-typing span:nth-child(2) { animation-delay: .18s; }
+  .sf-typing span:nth-child(3) { animation-delay: .36s; }
+
+  /* Quick replies */
+  .sf-quick-replies { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+  .sf-qr-btn {
+    background: white; border: 1.5px solid var(--sf-teal-accent);
+    color: var(--sf-teal-dark); font-family: 'DM Sans', sans-serif;
+    font-size: 12px; font-weight: 500;
+    padding: 6px 12px; border-radius: 20px;
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .sf-qr-btn:hover { background: var(--sf-teal-accent); color: white; transform: translateY(-1px); }
+
+  /* Input area */
+  .sf-input-area {
+    padding: 12px 14px; background: white;
+    border-top: 1px solid var(--sf-teal-light);
+    display: flex; gap: 8px; align-items: flex-end; flex-shrink: 0;
+  }
+  #sf-input {
+    flex: 1; border: 1.5px solid var(--sf-teal-light);
+    border-radius: 10px; padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif; font-size: 13.5px;
+    color: var(--sf-text-dark); background: var(--sf-teal-pale);
+    resize: none; outline: none;
+    min-height: 42px; max-height: 120px;
+    transition: border-color .15s, box-shadow .15s; line-height: 1.45;
+  }
+  #sf-input::placeholder { color: var(--sf-text-light); }
+  #sf-input:focus { border-color: var(--sf-teal-accent); box-shadow: 0 0 0 3px rgba(77,184,176,.15); background: white; }
+  #sf-send {
+    width: 42px; height: 42px; border-radius: 10px;
+    background: var(--sf-teal-dark); border: none; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .15s, transform .15s; flex-shrink: 0;
+  }
+  #sf-send:hover { background: var(--sf-teal-mid); transform: scale(1.05); }
+  #sf-send:active { transform: scale(0.96); }
+  #sf-send:disabled { opacity: .5; cursor: not-allowed; transform: none; }
+
+  /* Footer */
+  .sf-footer {
+    padding: 7px 14px 10px; background: white;
+    text-align: center; font-size: 10.5px; color: var(--sf-text-light);
+    border-top: 1px solid #f0f5f4; font-family: 'DM Sans', sans-serif;
+  }
+  .sf-footer a { color: var(--sf-teal-accent); text-decoration: none; }
+
+  /* Animations */
+  @keyframes sf-pulse {
+    0%,100% { transform: scale(1); opacity: 1; }
+    50%      { transform: scale(1.25); opacity: .7; }
+  }
+  @keyframes sf-bounce {
+    0%,60%,100% { transform: translateY(0); }
+    30%          { transform: translateY(-6px); }
+  }
+  @keyframes sf-msg-in {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  /* Mobile */
+  @media (max-width: 440px) {
+    #sf-window { width: calc(100vw - 24px); right: 12px; bottom: 96px; }
+    #sf-launcher { right: 16px; bottom: 16px; }
+  }
+</style>
+
+<!-- Launcher button -->
+<button id="sf-launcher" aria-label="Open chat">
+  <svg class="sf-icon-chat" width="26" height="26" viewBox="0 0 24 24" fill="none">
+    <path d="M20 2H4C2.9 2 2 2.9 2 4v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2z" fill="white"/>
+    <circle cx="8" cy="11" r="1" fill="#4db8b0"/>
+    <circle cx="12" cy="11" r="1" fill="#4db8b0"/>
+    <circle cx="16" cy="11" r="1" fill="#4db8b0"/>
+  </svg>
+  <svg class="sf-icon-close" width="22" height="22" viewBox="0 0 24 24" fill="none">
+    <path d="M18 6L6 18M6 6l12 12" stroke="white" stroke-width="2.2" stroke-linecap="round"/>
+  </svg>
+</button>
+
+<!-- Chat window -->
+<div id="sf-window" role="dialog" aria-label="Chat with Summit Foot + Ankle">
+  <div class="sf-header">
+    <div class="sf-header-top">
+      <div class="sf-brand-row">
+        <div class="sf-avatar">🦶</div>
+        <div>
+          <div class="sf-brand-name">Summit Foot + Ankle</div>
+          <div class="sf-brand-sub">Virtual Assistant</div>
+        </div>
+      </div>
+      <div class="sf-status"><span class="sf-status-dot"></span>Online</div>
+    </div>
+    <div class="sf-tagline">Expert care for your foot &amp; ankle health</div>
+  </div>
+
+  <div class="sf-messages" id="sf-messages"></div>
+
+  <div class="sf-input-area">
+    <textarea id="sf-input" placeholder="Type your message…" rows="1"></textarea>
+    <button id="sf-send" aria-label="Send">
+      <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+        <path d="M22 2L11 13M22 2L15 22l-4-9-9-4 20-7z" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="sf-footer">
+    Powered by Summit AI Assistant &nbsp;·&nbsp; <a href="tel:8018742319">(801) 874-2319</a>
+  </div>
+</div>
+
+<script>
+(function () {
+  // ── CONFIG — replace with your n8n webhook URL ──
+  var WEBHOOK = 'https://techstackautomation.app.n8n.cloud/webhook/33d03125-7908-4e59-8d79-8f1fede2d3ae/chat';
+
+  var sessionId = 'sf_' + Math.random().toString(36).slice(2);
+  var history   = [];
+  var isOpen    = false;
+  var waiting   = false;
+
+  var launcher = document.getElementById('sf-launcher');
+  var win      = document.getElementById('sf-window');
+  var msgs     = document.getElementById('sf-messages');
+  var input    = document.getElementById('sf-input');
+  var sendBtn  = document.getElementById('sf-send');
+
+  // Toggle
+  launcher.addEventListener('click', function () {
+    isOpen = !isOpen;
+    win.classList.toggle('open', isOpen);
+    launcher.classList.toggle('open', isOpen);
+    if (isOpen && history.length === 0) setTimeout(showWelcome, 350);
+    if (isOpen) setTimeout(function () { input.focus(); }, 400);
+  });
+
+  // Send on button click or Enter
+  sendBtn.addEventListener('click', sendMessage);
+  input.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+  input.addEventListener('input', function () {
+    this.style.height = 'auto';
+    this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+  });
+
+  function showWelcome() {
+    addBot("Hi there! 👋 I'm the Summit Foot + Ankle virtual assistant. How can I help you today?");
+    setTimeout(function () {
+      var qr = document.createElement('div');
+      qr.className = 'sf-quick-replies';
+      ['Book an appointment', 'Find a location', 'Insurance questions', 'Talk to someone'].forEach(function (label) {
+        var btn = document.createElement('button');
+        btn.className = 'sf-qr-btn';
+        btn.textContent = label;
+        btn.addEventListener('click', function () {
+          qr.remove();
+          addUser(label);
+          callWebhook(label);
+        });
+        qr.appendChild(btn);
+      });
+      msgs.appendChild(qr);
+      scrollBottom();
+    }, 600);
+  }
+
+  function sendMessage() {
+    var text = input.value.trim();
+    if (!text || waiting) return;
+    input.value = '';
+    input.style.height = 'auto';
+    addUser(text);
+    callWebhook(text);
+  }
+
+  function callWebhook(text) {
+    waiting = true;
+    sendBtn.disabled = true;
+    history.push({ role: 'user', content: text });
+
+    var typingRow = document.createElement('div');
+    typingRow.className = 'sf-msg sf-bot';
+    typingRow.innerHTML = '<div class="sf-msg-avatar">🦶</div><div class="sf-typing"><span></span><span></span><span></span></div>';
+    msgs.appendChild(typingRow);
+    scrollBottom();
+
+    fetch(WEBHOOK, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: text, sessionId: sessionId, history: history })
+    })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      typingRow.remove();
+      var reply = data.output || data.message || data.text || data.response ||
+        "I'm having trouble connecting. Please call us at (801) 874-2319.";
+      addBot(reply);
+      history.push({ role: 'assistant', content: reply });
+    })
+    .catch(function () {
+      typingRow.remove();
+      addBot("Sorry, something went wrong. Please call us at (801) 874-2319 or try again.");
+    })
+    .finally(function () {
+      waiting = false;
+      sendBtn.disabled = false;
+    });
+  }
+
+  function addBot(text) {
+    var el = document.createElement('div');
+    el.className = 'sf-msg sf-bot';
+    el.innerHTML = '<div class="sf-msg-avatar">🦶</div><div class="sf-bubble">' + esc(text) + '</div>';
+    msgs.appendChild(el);
+    scrollBottom();
+  }
+
+  function addUser(text) {
+    var el = document.createElement('div');
+    el.className = 'sf-msg sf-user';
+    el.innerHTML = '<div class="sf-msg-avatar">You</div><div class="sf-bubble">' + esc(text) + '</div>';
+    msgs.appendChild(el);
+    scrollBottom();
+  }
+
+  function scrollBottom() { msgs.scrollTop = msgs.scrollHeight; }
+
+  function esc(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\n/g,'<br>');
+  }
+})();
+</script>
