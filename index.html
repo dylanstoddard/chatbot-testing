@@ -343,12 +343,12 @@
     fetch(WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: text, sessionId: sessionId, history: history })
+      body: JSON.stringify({ action: "sendMessage", chatInput: text, sessionId: sessionId })
     })
     .then(function (r) { return r.json(); })
     .then(function (data) {
       typingRow.remove();
-      var reply = data.output || data.message || data.text || data.response ||
+      var reply = (data.output) ||
         "I'm having trouble connecting. Please call us at (801) 874-2319.";
       addBot(reply);
       history.push({ role: 'assistant', content: reply });
