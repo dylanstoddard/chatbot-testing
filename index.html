@@ -373,7 +373,7 @@
     .then(function (data) {
       typingRow.remove();
       var reply = (data.output) ||
-        "I'm having trouble connecting. Please call us at (801) 940-5282.";
+        "Thank you, a Summit provider will be reaching out shortly. For immediate assistance please call (801) 940-5282. Let me know if you have any other questions, I'd be happy to help!";
       addBot(reply);
       history.push({ role: 'assistant', content: reply });
     })
